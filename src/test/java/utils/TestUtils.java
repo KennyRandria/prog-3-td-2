@@ -1,23 +1,43 @@
 package utils;
 
+import app.foot.controller.rest.Match;
 import app.foot.controller.rest.Player;
 import app.foot.controller.rest.PlayerScorer;
+import app.foot.controller.rest.RestException;
+import app.foot.exception.ApiException;
 import app.foot.model.Team;
 import app.foot.repository.entity.PlayerEntity;
 import app.foot.repository.entity.PlayerScoreEntity;
 import app.foot.repository.entity.TeamEntity;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.function.Executable;
+import org.springframework.mock.web.MockHttpServletResponse;
+
+import java.io.UnsupportedEncodingException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class TestUtils {
+    private static final ObjectMapper objectMapper = new ObjectMapper()
+            .findAndRegisterModules();
 
     public static PlayerScorer scorer1() {
         return PlayerScorer.builder()
                 .player(player1())
                 .isOG(false)
                 .scoreTime(10)
+                .build();
+    }
+
+    public static PlayerScorer scorer6() {
+        return PlayerScorer.builder()
+                .player(player1().toBuilder().id(6).name("J6").teamName("E3").isGuardian(false).build())
+                .isOG(false)
+                .scoreTime(70)
                 .build();
     }
 
@@ -100,5 +120,23 @@ public class TestUtils {
     public static void assertThrowsExceptionMessage(String message, Class exceptionClass, Executable executable) {
         Throwable exception = assertThrows(exceptionClass, executable);
         assertEquals(message, exception.getMessage());
+    }
+
+    public static void assertThrowsServletExceptionMessage(String message, Executable executable) {
+        ServletException exception = assertThrows(ServletException.class, executable);
+        assertEquals(message, exception.getCause().getMessage());
+    }
+
+    public static void assertThrowsApiException(String expectedBody,  MockHttpServletResponse executable) throws Exception{
+        MockHttpServletResponse response = executable;
+        RestException exception = objectMapper.readValue(
+                response.getContentAsString(), RestException.class);
+        try{
+            if (response.getStatus()!=200 && response.getStatus()!=201){
+                throw new ApiException(response.getStatus(),exception.getMessage());
+            };
+        }catch(ApiException e){
+            assertEquals(expectedBody, exception.getMessage());
+        }
     }
 }
